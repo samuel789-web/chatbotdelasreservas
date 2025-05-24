@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Barbería César - Chatbot de Reservas</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(to bottom right, #0f2027, #203a43, #2c5364);
+      color: #eee;
+    }
+    .header {
+      background: linear-gradient(to right, #1f1f1f, #292929);
+      padding: 20px;
+      text-align: center;
+      color: #f2c94c;
+      font-size: 28px;
+      font-weight: bold;
+      border-bottom: 2px solid #f2c94c;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+    }
+    .chatbox {
+      width: 90%;
+      max-width: 450px;
+      margin: 40px auto;
+      background: rgba(26, 26, 26, 0.95);
+      border-radius: 15px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.7);
+      padding: 25px;
+      border: 2px solid #f2c94c;
+    }
+    .messages {
+      max-height: 350px;
+      overflow-y: auto;
+      margin-bottom: 10px;
+    }
+    .message {
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 8px;
+    }
+    .bot {
+      background: #333;
+      color: #f2c94c;
+    }
+    .user {
+      background: #2b4f81;
+      color: #fff;
+      text-align: right;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      background: #222;
+      color: #fff;
+    }
+    .reservas-lista {
+      background: #2d2d2d;
+      color: #fff;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 25px;
+      border: 1px solid #444;
+    }
+    .reservas-lista h3 {
+      color: #f2c94c;
+      margin-bottom: 10px;
+    }
+    .panel-admin {
+      width: 90%;
+      max-width: 450px;
+      margin: 40px auto;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 15px;
+      padding: 20px;
+      display: none;
+      box-shadow: 0 0 15px rgba(0,0,0,0.6);
+    }
+    .panel-admin button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      background: #f2c94c;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">Barbería César - Reserva tu cita</div>
+  <div class="chatbox">
+    <div class="messages" id="messages"></div>
+    <input type="text" id="userInput" placeholder="Escribe tu respuesta..." autocomplete="off"/>
+    <div class="reservas-lista" id="listaReservas">
+      <h3>Reservas confirmadas:</h3>
+      <ul id="reservaItems"></ul>
+    </div>
+  </div>
+
+  <div class="panel-admin" id="panelAdmin">
+    <h3>Panel de Administración</h3>
+    <button onclick="descargarCSV()">Descargar reservas en Excel (CSV)</button>
+  </div>
+
+  <script>
+    const messages = document.getElementById('messages');
+    const userInput = document.getElementById('userInput');
+    const reservaItems = document.getElementById('reservaItems');
+    const panelAdmin = document.getElementById('panelAdmin');
+
+    let step = 0;
+    let reserva = { nombre: "", fecha: "", hora: "", personas: "" };
+
+    const botMessages = [
+      "¡Hola! Bienvenido a Barbería César ✂. ¿Cuál es tu nombre?",
+      "Genial, ¿para qué fecha te gustaría reservar? (Ej: 25/05)",
+      "¿Y a qué hora? (Ej: 13:00)",
+      "¿Cuántas personas asistirán?",
+      "¡Reserva confirmada! Aquí tienes los detalles:",
+      "¡Muchas gracias por reservar con nosotros! ✂ Tu cita está lista."
+    ];
+
+    function addMessage(text, sender) {
+      const div = document.createElement("div");
+      div.classList.add("message", sender);
+      div.innerText = text;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function agregarReservaALista() {
+      const li = document.createElement("li");
+      li.innerText = `${reserva.fecha} - ${reserva.hora} - ${reserva.nombre} (${reserva.personas} personas)`;
+      reservaItems.appendChild(li);
+    }
+
+    function descargarCSV() {
+      const csv = `${reserva.nombre},${reserva.fecha},${reserva.hora},${reserva.personas}\n`;
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.setAttribute("download", "reservas_barberia.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function botNextMessage() {
+      setTimeout(() => {
+        if (step < botMessages.length - 2) {
+          addMessage(botMessages[step], "bot");
+        } else if (step === botMessages.length - 2) {
+          let resumen = `Nombre: ${reserva.nombre}\nFecha: ${reserva.fecha}\nHora: ${reserva.hora}\nPersonas: ${reserva.personas}`;
+          addMessage(botMessages[step], "bot");
+          addMessage(resumen, "bot");
+          agregarReservaALista();
+        } else {
+          addMessage(botMessages[step], "bot");
+        }
+      }, 900 + Math.random() * 600);
+    }
+
+    userInput.addEventListener("keypress", function(e) {
+      if (e.key === "Enter" && userInput.value.trim() !== "") {
+        let input = userInput.value.trim();
+
+        if (input === "admin123") {
+          panelAdmin.style.display = "block";
+          addMessage("[Acceso al panel de administración habilitado]", "bot");
+          userInput.value = "";
+          return;
+        }
+
+        addMessage(input, "user");
+
+        if (step === 0) reserva.nombre = input;
+        if (step === 1) reserva.fecha = input;
+        if (step === 2) {
+          if (/^(1[4-6]):[0-5][0-9]$/.test(input)) {
+            addMessage("⛔ Lo sentimos, no tomamos citas entre las 14:00 y las 17:00. Elige otra hora, por favor.", "bot");
+            userInput.value = "";
+            return;
+          } else {
+            reserva.hora = input;
+          }
+        }
+        if (step === 3) reserva.personas = input;
+
+        step++;
+        userInput.value = "";
+        botNextMessage();
+      }
+    });
+
+    botNextMessage();
+  </script>
+</body>
+</html>
