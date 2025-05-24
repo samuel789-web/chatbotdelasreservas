@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Barbería César - Chatbot de Reservas</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #111; color: #eee; margin: 0; padding: 0; }
+    .header { background: #222; padding: 20px; text-align: center; color: #f2c94c; font-size: 24px; font-weight: bold; }
+    .chatbox { width: 90%; max-width: 400px; margin: 20px auto; background: #1a1a1a; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.5); padding: 20px; }
+    .messages { max-height: 300px; overflow-y: auto; margin-bottom: 10px; }
+    .message { margin: 10px 0; }
+    .bot { color: #f2c94c; }
+    .user { text-align: right; color: #4aa3ff; }
+    input[type="text"] { width: 100%; padding: 10px; border: none; border-radius: 5px; font-size: 16px; }
+    .reservas-lista { background: #2d2d2d; color: #fff; padding: 10px; border-radius: 5px; margin-top: 20px; }
+    .reservas-lista h3 { color: #f2c94c; }
+    .panel-admin { width: 90%; max-width: 400px; margin: 20px auto; background: #1e1e1e; border: 1px solid #333; border-radius: 10px; padding: 15px; display: none; }
+    .panel-admin button { width: 100%; padding: 10px; margin-top: 10px; background: #f2c94c; color: #000; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="header">Barbería César - Reserva tu cita</div>
+  <div class="chatbox">
+    <div class="messages" id="messages"></div>
+    <input type="text" id="userInput" placeholder="Escribe tu respuesta..." autocomplete="off"/>
+    <div class="reservas-lista" id="listaReservas">
+      <h3>Reservas confirmadas:</h3>
+      <ul id="reservaItems"></ul>
+    </div>
+  </div>
+
+  <div class="panel-admin" id="panelAdmin">
+    <h3>Panel de Administración</h3>
+    <button onclick="descargarCSV()">Descargar reservas en Excel (CSV)</button>
+  </div>
+
+  <script>
+    const messages = document.getElementById('messages');
+    const userInput = document.getElementById('userInput');
+    const reservaItems = document.getElementById('reservaItems');
+    const panelAdmin = document.getElementById('panelAdmin');
+
+    let step = 0;
+    let reserva = { nombre: "", fecha: "", hora: "", personas: "" };
+
+    const botMessages = [
+      "¡Hola! Bienvenido a Barbería César ✂. ¿Cuál es tu nombre?",
+      "Genial, ¿para qué fecha te gustaría reservar? (Ej: 25/05)",
+      "¿Y a qué hora?",
+      "¿Cuántas personas asistirán?",
+      "¡Reserva confirmada! Aquí tienes los detalles:",
+      "¡Muchas gracias por reservar con nosotros! ✂ Tu cita está lista."
+    ];
+
+    function addMessage(text, sender) {
+      const div = document.createElement("div");
+      div.classList.add("message", sender);
+      div.innerText = text;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function agregarReservaALista() {
+      const li = document.createElement("li");
+      li.innerText = `${reserva.fecha} - ${reserva.hora} - ${reserva.nombre} (${reserva.personas} personas)`;
+      reservaItems.appendChild(li);
+
+      // Enviar reserva a Google Sheets mediante Apps Script
+      fetch("https://script.google.com/macros/s/AKfycbz5fvqbYOiLa-tTDm0fMMIajPrt9Aj8B0RR7qW4kVOqazpQGALwqgHUfydXH9hs3BrU/exec", {
+        method: "POST",
+        mode: "no-cors",
+        body: JSON.stringify(reserva),
+        headers: {
+          "Content-Type": "application/json"
+        }
+      })
+      .then(() => console.log("✅ Enviado al Sheets"))
+      .catch(err => console.error("❌ Error al enviar reserva:", err));
+    }
+
+    function botNextMessage() {
+      if (step < botMessages.length - 2) {
+        addMessage(botMessages[step], "bot");
+      } else if (step === botMessages.length - 2) {
+        let resumen = `Nombre: ${reserva.nombre}\nFecha: ${reserva.fecha}\nHora: ${reserva.hora}\nPersonas: ${reserva.personas}`;
+        addMessage(botMessages[step], "bot");
+        addMessage(resumen, "bot");
+        agregarReservaALista();
+      } else {
+        addMessage(botMessages[step], "bot");
+      }
+    }
+
+    userInput.addEventListener("keypress", function(e) {
+      if (e.key === "Enter" && userInput.value.trim() !== "") {
+        let input = userInput.value.trim();
+
+        // Comando secreto para abrir panel admin
+        if (input === "admin123") {
+          panelAdmin.style.display = "block";
+          addMessage("[Acceso al panel de administración habilitado]", "bot");
+          userInput.value = "";
+          return;
+        }
+
+        addMessage(input, "user");
+
+        if (step === 0) reserva.nombre = input;
+        if (step === 1) reserva.fecha = input;
+        if (step === 2) reserva.hora = input;
+        if (step === 3) reserva.personas = input;
+
+        step++;
+        userInput.value = "";
+        setTimeout(botNextMessage, 500);
+      }
+    });
+
+    // Inicia el chat
+    botNextMessage();
+
+    // Opcional: función para descargar CSV, si quieres que siga funcionando
+    function descargarCSV() {
+      alert("Las reservas ahora se guardan en Google Sheets. Descarga directa desde aquí no disponible.");
+    }
+  </script>
+</body>
+</html>
